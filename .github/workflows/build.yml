@@ -18,6 +18,8 @@ jobs:
       matrix:
         include:
           - arch: aarch64_generic
+          - arch: x86_64
+
     steps:
       - name: Checkout source tree
         uses: actions/checkout@v4
@@ -55,14 +57,19 @@ jobs:
 
       - name: Build
         run: |
-          SDK=$(curl -s -L https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/sha256sums | grep sdk | sed 's/.* \*//')
-          wget https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/$SDK -O sdk.tar.xz
+          if [ "${{ matrix.arch }}" == "aarch64_generic" ]; then
+            SDK=$(curl -s -L https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/sha256sums | grep sdk | sed 's/.* \*//')
+            wget https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/$SDK -O sdk.tar.xz
+          elif [ "${{ matrix.arch }}" == "x86_64" ]; then
+            SDK=$(curl -s -L https://downloads.immortalwrt.org/snapshots/targets/x86/64/sha256sums | grep sdk | sed 's/.* \*//')
+            wget https://downloads.immortalwrt.org/snapshots/targets/x86/64/$SDK -O sdk.tar.xz
+          fi
 
           mkdir sdk
           tar -I zstd -xf sdk.tar.xz --strip-components=1 -C sdk
           cd sdk
           ./scripts/feeds update -a
-          wget https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/config.buildinfo -O .config
+          wget https://downloads.immortalwrt.org/snapshots/targets/${{ matrix.arch }}/config.buildinfo -O .config
           make defconfig
           cp -a ../net package/
           sed -i 's/PKG_VERSION:=stable/PKG_VERSION:=${{ env.TAG }}/g' package/net/mihomo/Makefile

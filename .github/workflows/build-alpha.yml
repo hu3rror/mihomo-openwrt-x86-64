@@ -18,6 +18,8 @@ jobs:
       matrix:
         include:
           - arch: aarch64_generic
+          - arch: x86_64
+
     steps:
       - name: Checkout source tree
         uses: actions/checkout@v4
@@ -60,14 +62,21 @@ jobs:
 
       - name: Build
         run: |
-          SDK=$(curl -s -L https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/sha256sums | grep sdk | sed 's/.* \*//')
-          wget https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/$SDK -O sdk.tar.xz
+          if [ "${{ matrix.arch }}" == "aarch64_generic" ]; then
+            SDK=$(curl -s -L https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/sha256sums | grep sdk | sed 's/.* \*//')
+            wget https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/$SDK -O sdk.tar.xz
+            CONFIG_URL="https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/config.buildinfo"
+          elif [ "${{ matrix.arch }}" == "x86_64" ]; then
+            SDK=$(curl -s -L https://downloads.immortalwrt.org/snapshots/targets/x86/64/sha256sums | grep sdk | sed 's/.* \*//')
+            wget https://downloads.immortalwrt.org/snapshots/targets/x86/64/$SDK -O sdk.tar.xz
+            CONFIG_URL="https://downloads.immortalwrt.org/snapshots/targets/x86/64/config.buildinfo"
+          fi
 
           mkdir sdk
           tar -I zstd -xf sdk.tar.xz --strip-components=1 -C sdk
           cd sdk
           ./scripts/feeds update -a
-          wget https://downloads.immortalwrt.org/snapshots/targets/rockchip/armv8/config.buildinfo -O .config
+          wget $CONFIG_URL -O .config
           make defconfig
           cp -a ../net package/
           mv package/net/mihomo/git.Makefile package/net/mihomo/Makefile
@@ -104,7 +113,6 @@ jobs:
           tag: release
           assets: |
             mihomo_alpha*.ipk
-
 
       - name: Publishing to GitHub Releases
         uses: svenstaro/upload-release-action@v2
